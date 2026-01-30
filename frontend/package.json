@@ -1,0 +1,26 @@
+{
+  "name": "adaptive-assessment-frontend",
+  "version": "1.0.0",
+  "description": "Frontend for Adaptive Assessment Platform",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "deploy": "cd .. && npm run deploy:frontend"
+  },
+  "dependencies": {
+    "@aws-amplify/auth": "^5.0.0",
+    "amazon-cognito-identity-js": "^6.3.16",
+    "axios": "^1.6.2",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.20.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.43",
+    "@types/react-dom": "^18.2.17",
+    "@vitejs/plugin-react": "^4.2.1",
+    "vite": "^5.0.8"
+  }
+}
