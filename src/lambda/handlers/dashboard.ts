@@ -196,6 +196,7 @@ export async function getCandidateDrillDown(
       performance: metrics ? {
         overallScore: metrics.overallScore,
         roleFitScore: metrics.roleFitScore,
+        passed: metrics.passed,
         knowledgeAreaScores: metrics.knowledgeAreaScores,
         strengths: metrics.strengths,
         weaknesses: metrics.weaknesses
@@ -378,6 +379,7 @@ async function buildDashboard(tenantId: string): Promise<DashboardBuildResult> {
     assessmentTitle: string;
     roleFitScore: number;
     overallScore: number;
+    passed?: boolean;
     submittedAt: string;
     rank: number;
   }> = [];
@@ -395,6 +397,7 @@ async function buildDashboard(tenantId: string): Promise<DashboardBuildResult> {
       assessmentTitle: a?.title ?? '—',
       roleFitScore: m.roleFitScore,
       overallScore: m.overallScore,
+      passed: m.passed,
       submittedAt: s.submittedAt || '',
       rank: 0
     });

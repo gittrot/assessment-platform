@@ -7,7 +7,8 @@ import {
   QuestionResponse,
   KnowledgeArea,
   Assessment,
-  CandidateSession
+  CandidateSession,
+  SeniorityLevel
 } from '../shared/types';
 
 /**
@@ -37,9 +38,23 @@ export function calculatePerformanceMetrics(
     if (responses.length === 0) continue;
 
     const correctAnswers = responses.filter(r => r.isCorrect).length;
+    const incorrectAnswers = responses.filter(r => !r.isCorrect).length;
     const totalTime = responses.reduce((sum, r) => sum + r.timeSpentSeconds, 0);
     const difficulties = responses.map(r => r.difficulty);
     const avgDifficulty = difficulties.reduce((sum, d) => sum + d, 0) / difficulties.length;
+
+    // Log scoring calculation for debugging
+    console.log(`Scoring for ${area}:`, {
+      totalQuestions: responses.length,
+      correctAnswers,
+      incorrectAnswers,
+      calculatedScore: (correctAnswers / responses.length) * 100,
+      responses: responses.map(r => ({
+        questionId: r.questionId,
+        isCorrect: r.isCorrect,
+        answer: r.answer
+      }))
+    });
 
     knowledgeAreaScores[area as KnowledgeArea] = {
       score: (correctAnswers / responses.length) * 100,
@@ -49,6 +64,17 @@ export function calculatePerformanceMetrics(
       avgTimePerQuestion: totalTime / responses.length
     };
   }
+  
+  // Log overall calculation
+  console.log('Overall score calculation:', {
+    knowledgeAreaScores: Object.entries(knowledgeAreaScores).map(([area, data]) => ({
+      area,
+      score: data.score,
+      questionsAnswered: data.questionsAnswered,
+      correctAnswers: data.correctAnswers
+    })),
+    knowledgeAreaMix: assessment.knowledgeAreaMix
+  });
 
   // Calculate overall score (weighted by knowledge area mix)
   const overallScore = calculateWeightedScore(
@@ -69,17 +95,41 @@ export function calculatePerformanceMetrics(
     assessment.knowledgeAreaMix
   );
 
+  // Determine if candidate passed based on passThreshold
+  const passThreshold = assessment.passThreshold || getDefaultPassThreshold(assessment.targetRole.seniorityLevel);
+  const passed = roleFitScore >= passThreshold;
+
   return {
     sessionId: session.sessionId,
     assessmentId: session.assessmentId,
     tenantId: session.tenantId,
     overallScore,
     roleFitScore,
+    passed,
     knowledgeAreaScores,
     strengths,
     weaknesses,
     completedAt: session.submittedAt || new Date().toISOString()
   };
+}
+
+/**
+ * Get default pass threshold based on role seniority level
+ */
+function getDefaultPassThreshold(seniorityLevel: string | SeniorityLevel): number {
+  const level = String(seniorityLevel).toUpperCase();
+  switch (level) {
+    case 'JUNIOR':
+      return 50; // 50% for junior roles
+    case 'MID':
+      return 60; // 60% for mid-level roles
+    case 'SENIOR':
+      return 70; // 70% for senior roles
+    case 'LEAD':
+      return 75; // 75% for lead roles
+    default:
+      return 60; // Default to 60%
+  }
 }
 
 /**
@@ -106,34 +156,52 @@ function calculateWeightedScore(
 
 /**
  * Calculate role-fit score (considers role requirements and performance)
+ * This score emphasizes role-critical knowledge areas more than overall score
  */
 function calculateRoleFitScore(
   areaScores: PerformanceMetrics['knowledgeAreaScores'],
   targetRole: Assessment['targetRole'],
   knowledgeAreaMix: Assessment['knowledgeAreaMix']
 ): number {
-  // Base score from weighted performance
-  const baseScore = calculateWeightedScore(areaScores, knowledgeAreaMix);
+  // Calculate role-fit using a modified weighting that emphasizes role-critical areas
+  let totalWeightedScore = 0;
+  let totalWeight = 0;
 
-  // Adjustments based on role requirements
-  // For senior roles, weight advanced areas more
-  // For junior roles, weight fundamentals more
-  let adjustment = 0;
+  knowledgeAreaMix.forEach(config => {
+    const areaScore = areaScores[config.area];
+    if (areaScore && areaScore.questionsAnswered > 0) {
+      let weight = config.percentage / 100;
+      
+      // Apply role-specific multipliers to emphasize critical areas
+      if (targetRole.seniorityLevel === 'SENIOR' || targetRole.seniorityLevel === 'LEAD') {
+        // Senior roles: boost system design and algorithms weight
+        if (config.area === KnowledgeArea.SYSTEM_SCENARIO_DESIGN) {
+          weight *= 1.5; // 50% more weight
+        } else if (config.area === KnowledgeArea.ALGORITHMS_DATA_STRUCTURES) {
+          weight *= 1.3; // 30% more weight
+        }
+      } else {
+        // Junior/Mid roles: boost programming and analytical reasoning weight
+        if (config.area === KnowledgeArea.PROGRAMMING_LANGUAGE) {
+          weight *= 1.5; // 50% more weight
+        } else if (config.area === KnowledgeArea.ANALYTICAL_REASONING) {
+          weight *= 1.3; // 30% more weight
+        }
+      }
+      
+      totalWeightedScore += areaScore.score * weight;
+      totalWeight += weight;
+    }
+  });
 
-  if (targetRole.seniorityLevel === 'SENIOR' || targetRole.seniorityLevel === 'LEAD') {
-    // Senior roles: emphasize system design and advanced algorithms
-    const systemDesignScore = areaScores[KnowledgeArea.SYSTEM_SCENARIO_DESIGN]?.score || 0;
-    const algorithmsScore = areaScores[KnowledgeArea.ALGORITHMS_DATA_STRUCTURES]?.score || 0;
-    adjustment = (systemDesignScore * 0.15 + algorithmsScore * 0.1) * 0.3;
-  } else {
-    // Junior/Mid: emphasize fundamentals
-    const programmingScore = areaScores[KnowledgeArea.PROGRAMMING_LANGUAGE]?.score || 0;
-    const analyticalScore = areaScores[KnowledgeArea.ANALYTICAL_REASONING]?.score || 0;
-    adjustment = (programmingScore * 0.15 + analyticalScore * 0.1) * 0.3;
+  // If no questions were answered, return 0
+  if (totalWeight === 0) {
+    return 0;
   }
 
-  const roleFitScore = Math.min(100, Math.max(0, baseScore + adjustment));
-  return Math.round(roleFitScore);
+  // Calculate role-fit score (can be different from overall score due to weighting)
+  const roleFitScore = totalWeightedScore / totalWeight;
+  return Math.round(Math.min(100, Math.max(0, roleFitScore)));
 }
 
 /**

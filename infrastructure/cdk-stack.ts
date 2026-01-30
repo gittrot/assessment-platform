@@ -239,6 +239,7 @@ export class AdaptiveAssessmentStack extends cdk.Stack {
     dashboardsTable.grantReadWriteData(dashboardHandler);
     sessionsTable.grantReadData(dashboardHandler);
     assessmentsTable.grantReadData(dashboardHandler);
+    questionsTable.grantReadData(dashboardHandler);
     metricsTable.grantReadData(dashboardHandler);
     insightsTable.grantReadData(dashboardHandler);
     

@@ -55,6 +55,7 @@ export interface Assessment {
   initialDifficulty: DifficultyLevel;
   durationMinutes?: number;
   maxQuestions?: number; // Configurable number of questions (default: 10)
+  passThreshold?: number; // Minimum role fit score to pass (0-100), defaults based on role level
   createdAt: string;
   updatedAt: string;
   createdBy: string; // userId
@@ -105,6 +106,7 @@ export interface PerformanceMetrics {
   tenantId: string;
   overallScore: number; // 0-100
   roleFitScore: number; // 0-100
+  passed?: boolean; // Whether candidate passed based on passThreshold
   knowledgeAreaScores: Record<KnowledgeArea, {
     score: number;
     questionsAnswered: number;

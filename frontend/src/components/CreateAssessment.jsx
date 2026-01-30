@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { API_ENDPOINT } from '../config'
 
 const KNOWLEDGE_AREAS = [
@@ -21,8 +21,22 @@ function CreateAssessment({ token, onSuccess }) {
     initialDifficulty: 3,
     durationMinutes: 60,
     maxQuestions: 10,
+    passThreshold: '', // Will be set based on seniority level
     knowledgeAreas: []
   })
+
+  // Update passThreshold when seniorityLevel changes
+  useEffect(() => {
+    const defaults = {
+      'JUNIOR': 50,
+      'MID': 60,
+      'SENIOR': 70,
+      'LEAD': 75
+    }
+    if (!formData.passThreshold || formData.passThreshold === '') {
+      setFormData(prev => ({ ...prev, passThreshold: defaults[formData.seniorityLevel] || 60 }))
+    }
+  }, [formData.seniorityLevel])
   const [loading, setLoading] = useState(false)
 
   const addKnowledgeArea = () => {
@@ -62,6 +76,13 @@ function CreateAssessment({ token, onSuccess }) {
       return
     }
 
+    // Validate passThreshold
+    const passThresholdValue = formData.passThreshold ? parseInt(formData.passThreshold) : null
+    if (passThresholdValue !== null && (isNaN(passThresholdValue) || passThresholdValue < 0 || passThresholdValue > 100)) {
+      alert('Pass Threshold must be a number between 0 and 100')
+      return
+    }
+
     setLoading(true)
     try {
       const payload = {
@@ -78,7 +99,8 @@ function CreateAssessment({ token, onSuccess }) {
         })),
         initialDifficulty: parseInt(formData.initialDifficulty),
         durationMinutes: parseInt(formData.durationMinutes),
-        maxQuestions: parseInt(formData.maxQuestions)
+        maxQuestions: parseInt(formData.maxQuestions),
+        passThreshold: passThresholdValue !== null ? passThresholdValue : undefined
       }
 
       const response = await fetch(`${API_ENDPOINT}assessments`, {
@@ -189,6 +211,20 @@ function CreateAssessment({ token, onSuccess }) {
         />
         <p style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
           Number of questions candidates will answer (1-50)
+        </p>
+
+        <label className="label">Pass Threshold (%)</label>
+        <input
+          type="number"
+          className="input"
+          min="0"
+          max="100"
+          value={formData.passThreshold}
+          onChange={(e) => setFormData({ ...formData, passThreshold: e.target.value })}
+          placeholder="60"
+        />
+        <p style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
+          Minimum Role Fit Score to pass (0-100). Defaults: Junior=50%, Mid=60%, Senior=70%, Lead=75%
         </p>
 
         <div style={{ marginTop: '24px', marginBottom: '16px' }}>

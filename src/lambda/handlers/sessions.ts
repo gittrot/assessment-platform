@@ -449,6 +449,16 @@ export async function submitAnswer(
 
     // Validate answer
     const isCorrect = checkAnswer(answer, question.correctAnswer);
+    
+    // Log answer validation for debugging
+    console.log('Answer validation:', {
+      questionId,
+      userAnswer: answer,
+      correctAnswer: question.correctAnswer,
+      isCorrect,
+      answerType: Array.isArray(answer) ? 'array' : typeof answer,
+      correctAnswerType: Array.isArray(question.correctAnswer) ? 'array' : typeof question.correctAnswer
+    });
 
     // Create response - include question details for result viewing
     const response: QuestionResponse & {
@@ -803,10 +813,41 @@ async function findAssessmentById(assessmentId: string, tenantId?: string): Prom
 }
 
 function checkAnswer(userAnswer: string | string[], correctAnswer: string | string[]): boolean {
+  // Handle array answers (multiple correct answers)
   if (Array.isArray(correctAnswer)) {
-    if (!Array.isArray(userAnswer)) return false;
-    return correctAnswer.every(ans => userAnswer.includes(ans)) &&
-           userAnswer.every(ans => correctAnswer.includes(ans));
+    if (!Array.isArray(userAnswer)) {
+      console.log('Answer mismatch: correctAnswer is array but userAnswer is not', {
+        userAnswer,
+        correctAnswer
+      });
+      return false;
+    }
+    // Both arrays must have same elements (order doesn't matter)
+    const userNormalized = userAnswer.map(a => String(a).trim().toLowerCase());
+    const correctNormalized = correctAnswer.map(a => String(a).trim().toLowerCase());
+    const isMatch = correctNormalized.every(ans => userNormalized.includes(ans)) &&
+                    userNormalized.every(ans => correctNormalized.includes(ans));
+    console.log('Array answer check:', {
+      userNormalized,
+      correctNormalized,
+      isMatch
+    });
+    return isMatch;
   }
-  return String(userAnswer).trim().toLowerCase() === String(correctAnswer).trim().toLowerCase();
+  
+  // Handle string answers (single correct answer)
+  const userNormalized = String(userAnswer).trim().toLowerCase();
+  const correctNormalized = String(correctAnswer).trim().toLowerCase();
+  const isMatch = userNormalized === correctNormalized;
+  
+  if (!isMatch) {
+    console.log('String answer mismatch:', {
+      userAnswer,
+      correctAnswer,
+      userNormalized,
+      correctNormalized
+    });
+  }
+  
+  return isMatch;
 }

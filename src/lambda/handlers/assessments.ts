@@ -72,7 +72,8 @@ export async function createAssessment(
       knowledgeAreaMix,
       initialDifficulty = 3,
       durationMinutes,
-      maxQuestions = 10
+      maxQuestions = 10,
+      passThreshold
     } = body;
 
     // Validation
@@ -87,6 +88,28 @@ export async function createAssessment(
     // Validate maxQuestions
     if (maxQuestions !== undefined && (typeof maxQuestions !== 'number' || maxQuestions < 1 || maxQuestions > 50)) {
       throw new ValidationError('maxQuestions must be a number between 1 and 50');
+    }
+
+    // Validate passThreshold
+    if (passThreshold !== undefined && (typeof passThreshold !== 'number' || passThreshold < 0 || passThreshold > 100)) {
+      throw new ValidationError('passThreshold must be a number between 0 and 100');
+    }
+
+    // Set default passThreshold based on role level if not provided
+    let finalPassThreshold = passThreshold;
+    if (finalPassThreshold === undefined) {
+      const seniorityLevel = targetRole?.seniorityLevel;
+      if (seniorityLevel === 'JUNIOR') {
+        finalPassThreshold = 50; // 50% for junior roles
+      } else if (seniorityLevel === 'MID') {
+        finalPassThreshold = 60; // 60% for mid-level roles
+      } else if (seniorityLevel === 'SENIOR') {
+        finalPassThreshold = 70; // 70% for senior roles
+      } else if (seniorityLevel === 'LEAD') {
+        finalPassThreshold = 75; // 75% for lead roles
+      } else {
+        finalPassThreshold = 60; // Default to 60%
+      }
     }
 
     // Validate knowledge area mix percentages sum to 100
@@ -119,6 +142,7 @@ export async function createAssessment(
       initialDifficulty: initialDifficulty as DifficultyLevel,
       durationMinutes,
       maxQuestions: Math.max(1, Math.min(50, maxQuestions)), // Clamp between 1-50
+      passThreshold: finalPassThreshold,
       createdAt: now,
       updatedAt: now,
       createdBy: user.sub,
@@ -136,6 +160,7 @@ export async function createAssessment(
       initialDifficulty: assessment.initialDifficulty,
       durationMinutes: assessment.durationMinutes,
       maxQuestions: assessment.maxQuestions,
+      passThreshold: assessment.passThreshold,
       createdAt: assessment.createdAt,
       updatedAt: assessment.updatedAt,
       createdBy: assessment.createdBy,

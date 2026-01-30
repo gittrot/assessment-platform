@@ -12,6 +12,7 @@ function Dashboard({ token, assessments, onNavigateToAssessments, onSelectAssess
   const [candidates, setCandidates] = useState([])
   const [detail, setDetail] = useState(null)
   const [detailLoading, setDetailLoading] = useState(false)
+  const [filterStatus, setFilterStatus] = useState('all') // 'all', 'passed', 'failed'
   const candidatesRef = useRef(null)
 
   useEffect(() => {
@@ -196,7 +197,47 @@ function Dashboard({ token, assessments, onNavigateToAssessments, onSelectAssess
       </div>
 
       <div ref={candidatesRef} className="card" style={{ marginTop: '24px' }}>
-        <h3 style={{ marginBottom: '16px' }}>Candidates &amp; ranking</h3>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+          <h3 style={{ margin: 0 }}>Candidates &amp; ranking</h3>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              className="btn"
+              onClick={() => setFilterStatus('all')}
+              style={{
+                padding: '6px 12px',
+                fontSize: '14px',
+                background: filterStatus === 'all' ? '#667eea' : '#f0f0f0',
+                color: filterStatus === 'all' ? 'white' : '#333'
+              }}
+            >
+              All
+            </button>
+            <button
+              className="btn"
+              onClick={() => setFilterStatus('passed')}
+              style={{
+                padding: '6px 12px',
+                fontSize: '14px',
+                background: filterStatus === 'passed' ? '#4caf50' : '#f0f0f0',
+                color: filterStatus === 'passed' ? 'white' : '#333'
+              }}
+            >
+              Passed
+            </button>
+            <button
+              className="btn"
+              onClick={() => setFilterStatus('failed')}
+              style={{
+                padding: '6px 12px',
+                fontSize: '14px',
+                background: filterStatus === 'failed' ? '#f44336' : '#f0f0f0',
+                color: filterStatus === 'failed' ? 'white' : '#333'
+              }}
+            >
+              Failed
+            </button>
+          </div>
+        </div>
         {candidates.length === 0 ? (
           <p>No completed candidate results yet.</p>
         ) : (
@@ -205,6 +246,7 @@ function Dashboard({ token, assessments, onNavigateToAssessments, onSelectAssess
               <thead>
                 <tr>
                   <th>Rank</th>
+                  <th>Status</th>
                   <th>Name</th>
                   <th>Email</th>
                   <th>Assessment</th>
@@ -214,7 +256,14 @@ function Dashboard({ token, assessments, onNavigateToAssessments, onSelectAssess
                 </tr>
               </thead>
               <tbody>
-                {candidates.map((c) => (
+                {candidates
+                  .filter(c => {
+                    if (filterStatus === 'all') return true
+                    if (filterStatus === 'passed') return c.passed === true
+                    if (filterStatus === 'failed') return c.passed === false
+                    return true
+                  })
+                  .map((c) => (
                   <tr
                     key={c.sessionId}
                     className="dashboard-row-clickable"
@@ -224,6 +273,36 @@ function Dashboard({ token, assessments, onNavigateToAssessments, onSelectAssess
                     onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && openCandidateDetail(c)}
                   >
                     <td>{c.rank}</td>
+                    <td>
+                      {c.passed === true ? (
+                        <span style={{
+                          padding: '4px 12px',
+                          borderRadius: '12px',
+                          fontSize: '12px',
+                          fontWeight: 'bold',
+                          background: '#4caf50',
+                          color: 'white'
+                        }}>PASS</span>
+                      ) : c.passed === false ? (
+                        <span style={{
+                          padding: '4px 12px',
+                          borderRadius: '12px',
+                          fontSize: '12px',
+                          fontWeight: 'bold',
+                          background: '#f44336',
+                          color: 'white'
+                        }}>FAIL</span>
+                      ) : (
+                        <span style={{
+                          padding: '4px 12px',
+                          borderRadius: '12px',
+                          fontSize: '12px',
+                          fontWeight: 'bold',
+                          background: '#ccc',
+                          color: '#666'
+                        }}>—</span>
+                      )}
+                    </td>
                     <td>{c.candidateName}</td>
                     <td>{c.candidateEmail}</td>
                     <td>{c.assessmentTitle}</td>
@@ -271,8 +350,22 @@ function Dashboard({ token, assessments, onNavigateToAssessments, onSelectAssess
                 )}
                 {detail.performance && (
                   <div style={{ marginBottom: '16px', paddingBottom: '16px', borderBottom: '1px solid #ddd' }}>
-                    <strong>Role fit score:</strong> {Number(detail.performance.roleFitScore).toFixed(1)} ·{' '}
-                    <strong>Overall score:</strong> {Number(detail.performance.overallScore).toFixed(1)}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                      <strong>Role fit score:</strong> {Number(detail.performance.roleFitScore).toFixed(1)} ·{' '}
+                      <strong>Overall score:</strong> {Number(detail.performance.overallScore).toFixed(1)}
+                      {detail.performance.passed !== undefined && (
+                        <span style={{
+                          padding: '4px 12px',
+                          borderRadius: '12px',
+                          fontSize: '12px',
+                          fontWeight: 'bold',
+                          background: detail.performance.passed ? '#4caf50' : '#f44336',
+                          color: 'white'
+                        }}>
+                          {detail.performance.passed ? '✓ PASSED' : '✗ FAILED'}
+                        </span>
+                      )}
+                    </div>
                     {detail.performance.strengths?.length > 0 && (
                       <div style={{ marginTop: '8px' }}>
                         <strong>Strengths:</strong> {detail.performance.strengths.join(', ')}

@@ -74,22 +74,27 @@ function buildInsightsPrompt(
   return `Analyze this candidate's assessment performance and provide role-fit insights.
 
 Target Role: ${role.seniorityLevel} ${role.name}
-Overall Score: ${metrics.overallScore}%
-Role Fit Score: ${metrics.roleFitScore}%
+Overall Score: ${metrics.overallScore}% (weighted average across all knowledge areas)
+Role Fit Score: ${metrics.roleFitScore}% (emphasizes role-critical areas: ${role.seniorityLevel === 'SENIOR' || role.seniorityLevel === 'LEAD' ? 'System Design and Algorithms' : 'Programming Language and Analytical Reasoning'})
 
 Knowledge Area Performance:
 ${knowledgeAreaScores}
 
-Strengths: ${metrics.strengths.join(', ')}
-Weaknesses: ${metrics.weaknesses.join(', ')}
+Strengths: ${metrics.strengths.length > 0 ? metrics.strengths.join(', ') : 'None identified'}
+Weaknesses: ${metrics.weaknesses.length > 0 ? metrics.weaknesses.join(', ') : 'None identified'}
 
 Provide a comprehensive analysis including:
-1. Overall role-fit assessment (2-3 sentences)
-2. Detailed analysis of strength areas (why they're strong, what it means)
-3. Detailed analysis of weak areas (root causes, implications)
-4. Specific training recommendations
-5. Role readiness score (0-100)
-6. Follow-up assessment suggestions (if applicable)
+1. Overall role-fit assessment (2-3 sentences) - Explain what the scores mean, why they differ (if they do), and overall suitability for the role
+2. Detailed analysis of strength areas (why they're strong, what it means) - Only if strengths exist
+3. Detailed analysis of weak areas (root causes, implications) - Focus on areas critical for this role
+4. Specific training recommendations based on weaknesses
+5. Role readiness score (0-100) - Based on role fit score and critical area performance
+6. Follow-up assessment suggestions (if applicable) - Only if scores are borderline or need verification
+
+IMPORTANT: 
+- If overall score and role fit score are similar, explain that the candidate performed consistently across all areas
+- If role fit score is lower than overall score, explain that the candidate struggled particularly in role-critical areas
+- If role fit score is higher than overall score, explain that the candidate performed better in role-critical areas despite overall weaknesses
 
 Output format (JSON):
 {
